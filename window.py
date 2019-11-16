@@ -36,10 +36,8 @@ class Window(QWidget):
     def paintEvent(self, e):
         self.qp.begin(self)
         self.qp.setRenderHint(QPainter.Antialiasing)
-        self.qp.setPen(QPen(QColor(0,0,0,0)))
         self.cells.render(self.qp)
-       # self.qp.setPen(QPen(QColor(255,255,255,255), 0.1))
-       # self.cells.drawGrid(self.qp)
+        self.cells.drawGrid(self.qp)
         self.qp.end()
 
     def mousePressEvent(self, e):
@@ -55,17 +53,15 @@ class Window(QWidget):
             self.startPanX = x
             self.startPanY = y
 
-        self.update()
-
     def mouseMoveEvent(self, e):
         if e.buttons() == Qt.MiddleButton:
             x = e.x()
             y = e.y()
             self.cells.panX -= (x - self.startPanX)
             self.cells.panY -= (y - self.startPanY)
-            if self.cells.panX > 0:
+            if self.cells.panX < 0:
                 self.cells.panX = 0
-            if self.cells.panY > 0:
+            if self.cells.panY < 0:
                 self.cells.panY = 0
             self.startPanX = x
             self.startPanY = y

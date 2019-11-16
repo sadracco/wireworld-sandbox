@@ -1,5 +1,6 @@
 import numpy as np
-from PyQt5.QtGui import QBrush, QColor
+from PyQt5.QtGui import QBrush, QColor, QPen
+from PyQt5.QtCore import Qt
 
 
 class CellGrid:
@@ -12,7 +13,11 @@ class CellGrid:
                 'con': QBrush(QColor(242,227,56)),
                 'head': QBrush(QColor(66,135,245)),
                 'tail': QBrush(QColor(242,56,65)),
-                'all': QBrush(QColor(0,56,65))
+                }
+        self.pens = {
+                'con': QPen(QColor(242,227,56), 1.5),
+                'head': QPen(QColor(66,135,245), 1.5),
+                'tail': QPen(QColor(242,56,65), 1.5),
                 }
 
         self.panY = 0
@@ -28,10 +33,10 @@ class CellGrid:
         print(f'addCell: screen({xx},{yy}), grid({x},{y})')
         if x >= shape[1]:
             self.expand(0,x-shape[1]+1)
-            print('Cell grid expansion from ({shape[1]},{shape[0]}) to ({self.grid.shape[1]},{self.grid.shape[0]})')
+            print(f'Cell grid expansion from ({shape[1]},{shape[0]}) to ({self.grid.shape[1]},{self.grid.shape[0]})')
         if y >= shape[0]:
             self.expand(y-shape[0]+1,0)
-            print('Cell grid expansion from ({shape[1]},{shape[0]}) to ({self.grid.shape[1]},{self.grid.shape[0]})')
+            print(f'Cell grid expansion from ({shape[1]},{shape[0]}) to ({self.grid.shape[1]},{self.grid.shape[0]})')
 
         self.grid[y,x] = v
 
@@ -40,14 +45,17 @@ class CellGrid:
         rSize = self.scaleX * self.cellSize
         for x, y in self.getConductors():
             qp.setBrush(self.brushes['con'])
+            qp.setPen(self.pens['con'])
             x, y = self.gridToScreen((x*s, y*s))
             qp.drawRect(x, y, rSize, rSize)
         for x, y in self.getHeads():
             qp.setBrush(self.brushes['head'])
+            qp.setPen(self.pens['head'])
             x, y = self.gridToScreen((x*s, y*s))
             qp.drawRect(x, y, rSize, rSize)
         for x, y in self.getTails():
             qp.setBrush(self.brushes['tail'])
+            qp.setPen(self.pens['tail'])
             x, y = self.gridToScreen((x*s, y*s))
             qp.drawRect(x, y, rSize, rSize)
 
@@ -59,6 +67,10 @@ class CellGrid:
         print(f'Scale: scale({self.scaleX}, {self.scaleY}) before({bwx}, {bwy}) after({awx}, {awy}))')
         self.panX += (bwx - awx)
         self.panY += (bwy - awy)
+        if self.panX < 0:
+            self.panX = 0
+        if self.panY < 0:
+            self.panY = 0
 
     def gridToScreen(self, pos):
         return (int((pos[0]-self.panX) * self.scaleX),
@@ -74,14 +86,27 @@ class CellGrid:
         return self.grid[x//s, y//s]
 
     def drawGrid(self, qp):
-        s = self.cellSize
-        for y in range(s,self.S_HEIGHT,s):
+        x, y = self.gridToScreen((0,0))
+        qp.setPen(QPen(QColor(255,255,255,100), 3, Qt.DotLine))
+        qp.drawLine(0,y,self.S_WIDTH,y)
+        qp.drawLine(x,0,x,self.S_HEIGHT)
+        qp.setPen(QPen(QColor(255,255,255,255), 0.05))
+        s = self.cellSize * self.scaleX
+        y = y%s
+        while y < self.S_HEIGHT:
             qp.drawLine(0,y,self.S_WIDTH,y)
-        for x in range(s,self.S_WIDTH,s):
+            y += s
+
+        x = x%s
+        while x < self.S_WIDTH:
             qp.drawLine(x,0,x,self.S_HEIGHT)
+            x += s
 
     def expand(self, x, y):
         self.grid = np.pad(self.grid, [(0,x), (0,y)])
+
+    def expandLeft(self, x, y):
+        self.grid = np.pad(self.grid, [(x,0), (y,0)])
 
     def clear(self):
         self.grid = np.zeros(self.grid.shape)
