@@ -1,99 +1,79 @@
 #!/usr/bin/python3
 
-from PyQt5.QtWidgets import QWidget, QApplication
-from PyQt5.QtGui import QPainter, QBrush, QColor, QPen, QCursor
+from PyQt5.QtWidgets import QWidget, QApplication, QLabel, QHBoxLayout, QVBoxLayout
+from PyQt5.QtGui import QPainter, QBrush, QColor, QPen, QCursor, QPixmap
 from PyQt5.QtCore import Qt, QTimer
 
 from CellGrid import CellGrid
+from OnOffButton import OnOffButton
+from RadioButton import RadioButton
+from RadioSet import RadioSet
+from ClickButton import ClickButton
 
 import sys
-
-
-S_WIDTH = 1300
-S_HEIGHT = 700
 
 
 class Window(QWidget):
     def __init__(self):
         super().__init__()
         self.initUI()
-        self.initQP()
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.animFrame)
-        self.timer.setInterval(500)
-        self.anim = False
-        self.cells = CellGrid(S_HEIGHT, S_WIDTH)
 
     def initUI(self):
-        self.setGeometry(0, 0, S_WIDTH, S_HEIGHT)
+        self.setGeometry(0, 0, 1300, 700)
         self.setWindowTitle('Wire World')
         self.setStyleSheet('background-color: black')
-        self.show()
 
-    def initQP(self):
-        self.qp = QPainter()
+        self.grid = CellGrid(700, 1300, self)
+
+        self.animMenu = QHBoxLayout()
+        self.animMenu.addWidget(OnOffButton(self, 'assets/play.png', 'assets/pause.png', self.grid.switchAnim, defState=False))
+        self.animMenu.addWidget(ClickButton(self, 'assets/rightArrow.png', self.grid.resolve))
+        self.animMenu.addWidget(ClickButton(self, 'assets/upArrow.png', self.grid.speedUp))
+        self.animMenu.addWidget(ClickButton(self, 'assets/downArrow.png', self.grid.speedDown))
+
+        self.toolboxMenu = QVBoxLayout()
+
+        self.toolboxRadioSet = RadioSet()
+        marker = RadioButton(self, self.toolboxRadioSet, 'assets/marker.png', self.grid.setToolMarker, onColor='150, 255, 215, 0.5', defState=True)
+        eraser = RadioButton(self, self.toolboxRadioSet, 'assets/eraser.png', self.grid.setToolEraser, onColor='150, 255, 215, 0.5')
+        self.toolboxRadioSet.add(marker)
+        self.toolboxRadioSet.add(eraser)
+
+        grid = OnOffButton(self, 'assets/grid.png', 'assets/grid.png', self.grid.triggerGrid, onColor='150, 255, 215, 0.5')
+
+        self.toolboxMenu.addWidget(marker)
+        self.toolboxMenu.addWidget(eraser)
+        self.toolboxMenu.addWidget(ClickButton(self, 'assets/broom.png', self.grid.clear, onColor='150, 255, 215, 0.5'))
+        self.toolboxMenu.addWidget(grid)
+
+        hbox = QHBoxLayout()
+        hbox.addLayout(self.animMenu)
+        hbox.addStretch(1)
+
+        vbox = QVBoxLayout()
+        vbox.addLayout(self.toolboxMenu)
+        vbox.addStretch(1)
+        vbox.addLayout(hbox)
+
+        self.setLayout(vbox)
+
+        self.show()
         
     def paintEvent(self, e):
-        self.qp.begin(self)
-        self.qp.setRenderHint(QPainter.Antialiasing)
-        self.cells.render(self.qp)
-        self.cells.drawGrid(self.qp)
-        self.qp.end()
+        self.grid.render()
 
     def mousePressEvent(self, e):
-        x, y = e.x(), e.y()
-        if e.button() == Qt.LeftButton:
-            self.addCell(x, y, 1)
-        if e.button() == Qt.RightButton:
-            if self.cells.getCellAtPos(x, y) == 2:
-                self.addCell(x, y, 3)
-            else:
-                self.addCell(x, y, 2)
-        if e.button() == Qt.MiddleButton:
-            self.startPanX = x
-            self.startPanY = y
+        self.grid.processMousePress(e)
 
     def mouseMoveEvent(self, e):
-        if e.buttons() == Qt.MiddleButton:
-            x = e.x()
-            y = e.y()
-            self.cells.panX -= (x - self.startPanX)
-            self.cells.panY -= (y - self.startPanY)
-            if self.cells.panX < 0:
-                self.cells.panX = 0
-            if self.cells.panY < 0:
-                self.cells.panY = 0
-            self.startPanX = x
-            self.startPanY = y
-        self.update()
+        self.grid.processMouseMove(e)
 
     def wheelEvent(self, e):
-        mpos = (QCursor.pos().x(), QCursor.pos().y())
-        d = e.angleDelta().y()
-        if d > 0:
-            self.cells.scale(mpos, 1 + d*0.0001)
-        elif d < 0:
-            self.cells.scale(mpos, 1 + d*0.0001)
-        self.update()
+        self.grid.processWheel(e)
 
-    def keyPressEvent(self, e):
-        if e.key() == Qt.Key_Space:
-            self.anim = not self.anim
-            if self.anim:
-                self.timer.start()
-            else:
-                self.timer.stop()
-        elif e.key() == Qt.Key_C:
-            self.cells.clear()
-            self.update()
-
-    def animFrame(self):
-        self.cells.resolve()
-        self.update()
-
-    def addCell(self, x, y, v):
-        self.cells.addCell(y, x, v)
-        self.update()
+    def resizeEvent(self, e):
+        self.grid.S_WIDTH = self.frameGeometry().width()
+        self.grid.S_HEIGHT = self.frameGeometry().height()
 
 
 if __name__ == '__main__':
